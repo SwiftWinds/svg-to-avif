@@ -1,0 +1,14 @@
+{
+  "name": "svg2avif",
+  "version": "1.0.0",
+  "description": "Convert SVG files to AVIF format and update references",
+  "main": "index.js",
+  "bin": {
+    "svg2avif": "./index.js"
+  },
+  "dependencies": {
+    "glob": "^11.0.0",
+    "glob-promise": "^6.0.7",
+    "playwright": "^1.49.1"
+  }
+}
