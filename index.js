@@ -94,7 +94,20 @@ async function convert(file) {
   const compressedDownload = await compressedDownloadPromise;
   await compressedDownload.saveAs(avifPath);
 
-  // After successful conversion and deletion, update references
+  // After compression, check file sizes
+  const avifStats = await fs.stat(avifPath);
+  const svgStats = await fs.stat(file.path);
+  
+  if (avifStats.size >= svgStats.size) {
+    console.log(`AVIF (${avifStats.size} bytes) is not smaller than SVG (${svgStats.size} bytes). Keeping SVG.`);
+    await fs.unlink(avifPath); // Delete the AVIF file
+    await context.close();
+    await browser.close();
+    return;
+  }
+  
+  // If we get here, AVIF is smaller, so proceed with reference updates
+  console.log(`AVIF (${avifStats.size} bytes) is smaller than SVG (${svgStats.size} bytes). Replacing...`);
   const originalName = file.name;
   const newName = originalName.replace(".svg", ".avif");
   await updateReferences(originalName, newName);
@@ -121,14 +134,20 @@ async function main() {
     await Promise.all(
       files.map(async (file) => {
         const filePath = path.join(currentDir, file);
+        const stats = await fs.stat(filePath);
         const content = await fs.readFile(filePath, "utf8");
-        // check if the content contains <svg width="(.*?)" and <image
-        const width = /<svg width="(.*?)"/.exec(content)?.[1];
-        const image = /<image/.test(content);
-        // if it doesn't contain width or image, return null
-        if (!width || !image) {
+        
+        // Only process if file is >= 10KB
+        if (stats.size < 10 * 1024) {
           return null;
         }
+        
+        // Extract width for scaling
+        const width = /<svg width="(.*?)"/.exec(content)?.[1];
+        if (!width) {
+          return null;
+        }
+        
         return {
           path: filePath,
           dir: path.dirname(filePath),
